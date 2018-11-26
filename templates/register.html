@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Success!
+{% endblock %}
+
+{% block body %}
+    <h1> Register</h1>
+    <p>Please create a memorable username and password.</p>
+
+<form action="{{ url_for('register') }}" method="POST">
+        <input type="text" placeholder="Enter New Username" name="username" required>
+        <input type="password" placeholder="Enter password" name="password" required>
+        <button type="submit" class="registerbtn">Register</button>
+</form>
+
+{% endblock %}
