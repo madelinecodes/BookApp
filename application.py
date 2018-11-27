@@ -4,6 +4,7 @@ from flask import Flask, session, redirect, render_template, request
 from flask_session import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+import json
 
 app = Flask(__name__)
 
@@ -67,3 +68,25 @@ def logout():
     if 'username' in session:
         session.pop('username', None)
     return 'Logged out!'
+
+
+@app.route("/search", methods=['GET', 'POST'])
+def search():
+    if 'username' in session:
+        if request.method == "POST":
+            search = request.form.get("search")
+            search_result = db.execute("SELECT * FROM books WHERE (LOWER(isbn) LIKE LOWER(:search)) OR (LOWER(title) LIKE LOWER(:search)) OR (author LIKE LOWER(:search)) LIMIT 10",
+                { "search": '%' + search + '%'})
+            if search_result.rowcount == 0:
+                return render_template("none.html", message="we didnt find that search")
+            elif search_result.rowcount >= 1:
+                return render_template('book_list.html', result=search_result)
+        else:
+            return render_template('search.html')
+    else:
+        return redirect('/login')
+
+@app.route("/book/<isbn>") 
+def book_detail(isbn):
+    book = db.execute("SELECT * FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
+    return render_template('book_detail.html', book=book)
