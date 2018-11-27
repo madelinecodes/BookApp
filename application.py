@@ -37,6 +37,33 @@ def register():
             {"username" : username, "password": password})
         db.commit()
         session['username'] = username
-        return 'Try the home page.'
+        return redirect('/')
     else:
         return render_template('register.html')
+
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    if 'username' in session:
+        return redirect('/')
+        #redirect to index 
+    elif request.method == "POST":
+        username = request.form.get('username')
+        password = request.form.get('password')
+        login_result = db.execute("SELECT * FROM users WHERE username = :username AND password = :password ",
+            {"username": username, "password": password})
+
+        if login_result.rowcount == 0:
+                return render_template("register.html", message="You're not currently registered")
+        elif login_result.rowcount == 1:
+            session['username'] = username
+            return 'Logged in as ' + session['username']
+            #thats their thingy so we need to start a session for them
+    else:
+        return render_template('login.html')
+
+@app.route("/logout")
+def logout():
+    if 'username' in session:
+        session.pop('username', None)
+    return 'Logged out!'
