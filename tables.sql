@@ -19,7 +19,7 @@ CREATE TABLE reviews (
 );
 
 
-CReate Table reviews (
+CREATE TABLE reviews (
     users VARCHAR NOT NULL,
     review VARCHAR,
     rating VARCHAR,

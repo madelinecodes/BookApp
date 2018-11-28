@@ -1,10 +1,9 @@
 import os
 
-from flask import Flask, session, redirect, render_template, request
+from flask import Flask, session, redirect, render_template, request, jsonify
 from flask_session import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-import json
 
 app = Flask(__name__)
 
@@ -88,8 +87,12 @@ def search():
 
 @app.route("/book/<isbn>",  methods=['GET', 'POST']) 
 def book_detail(isbn):
-    book = db.execute("SELECT * FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
-    if request.method == "POST":
+    review_list = db.execute("SELECT reviews.users, reviews.review, reviews.rating, books.isbn FROM reviews LEFT JOIN books ON reviews.isbn = books.isbn").fetchall()
+    if 'username' in session and request.method == "POST":
+        for review in review_list:
+            if review.users == session['username'] and review.isbn == isbn:
+                return 'Sorry, you can only review books once'
+
         isbn = db.execute("SELECT isbn FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
         users = session['username']
         review = request.form.get("review")
@@ -99,8 +102,34 @@ def book_detail(isbn):
         {"users":users, "review":review, "rating":rating, "isbn":isbn.isbn})
         db.commit()
         return render_template("success.html")
+    elif 'username' not in session and request.method == "POST":  
+         return redirect('/login')
     else:
-       review_list = db.execute("SELECT reviews.users, reviews.review, reviews.rating, books.isbn FROM reviews LEFT JOIN books ON reviews.isbn = books.isbn")
-       return render_template('book_detail.html',review_list=review_list , book=book)
-    
-   
+        book = db.execute("SELECT * FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
+        return render_template('book_detail.html', review_list=review_list , book=book)
+
+@app.route("/api/<isbn>",  methods=['GET']) 
+def api_detail(isbn):
+    book = dict()
+    book_result = db.execute("SELECT title, author, pubyear, isbn FROM books WHERE isbn = :isbn", {"isbn":isbn}).first()
+    book['title'] = book_result.title
+    book['author'] = book_result.author
+    book['pubyear'] = book_result.pubyear
+    book['isbn'] = book_result.isbn
+
+    review_result = db.execute("SELECT review, rating FROM reviews WHERE isbn = :isbn", {"isbn":isbn})
+    review_count = 0
+    review_sum = 0
+
+    for review in review_result:
+        if review.rating == None:
+            continue
+        review_count += 1
+        review_sum += int(review.rating)
+        average_rating = review_sum / review_count
+
+    book['review_count'] = review_count
+    book['average_score'] = average_rating
+
+    return jsonify(book)
+
