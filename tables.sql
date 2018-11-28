@@ -11,4 +11,17 @@ CREATE TABLE books (
 );
 
 
+CREATE TABLE reviews (
+    users VARCHAR NOT NULL,
+    review VARCHAR,
+    rating VARCHAR,
+    isbn VARCHAR
+);
 
+
+CReate Table reviews (
+    users VARCHAR NOT NULL,
+    review VARCHAR,
+    rating VARCHAR,
+    isbn VARCHAR
+);

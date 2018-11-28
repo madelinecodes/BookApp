@@ -86,7 +86,21 @@ def search():
     else:
         return redirect('/login')
 
-@app.route("/book/<isbn>") 
+@app.route("/book/<isbn>",  methods=['GET', 'POST']) 
 def book_detail(isbn):
     book = db.execute("SELECT * FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
-    return render_template('book_detail.html', book=book)
+    if request.method == "POST":
+        isbn = db.execute("SELECT isbn FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
+        users = session['username']
+        review = request.form.get("review")
+        rating = request.form.get('rating')
+        
+        db.execute("INSERT INTO reviews (users, review, rating, isbn) VALUES (:users, :review, :rating, :isbn)", 
+        {"users":users, "review":review, "rating":rating, "isbn":isbn.isbn})
+        db.commit()
+        return render_template("success.html")
+    else:
+       review_list = db.execute("SELECT reviews.users, reviews.review, reviews.rating, books.isbn FROM reviews LEFT JOIN books ON reviews.isbn = books.isbn")
+       return render_template('book_detail.html',review_list=review_list , book=book)
+    
+   
