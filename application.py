@@ -1,5 +1,6 @@
 import os
-
+import requests
+import json
 from flask import Flask, session, redirect, render_template, request, jsonify
 from flask_session import Session
 from sqlalchemy import create_engine
@@ -101,12 +102,15 @@ def book_detail(isbn):
         db.execute("INSERT INTO reviews (users, review, rating, isbn) VALUES (:users, :review, :rating, :isbn)", 
         {"users":users, "review":review, "rating":rating, "isbn":isbn.isbn})
         db.commit()
-        return render_template("success.html")
+        return book_detail(isbn)
     elif 'username' not in session and request.method == "POST":  
          return redirect('/login')
     else:
         book = db.execute("SELECT * FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
-        return render_template('book_detail.html', review_list=review_list , book=book)
+        good_reads_ratings = get_good_reads_ratings(isbn)
+        our_ratings = get_our_ratings(isbn)
+        return render_template('book_detail.html', review_list=review_list , book=book,
+            good_reads_ratings=good_reads_ratings, our_ratings=our_ratings, )
 
 @app.route("/api/<isbn>",  methods=['GET']) 
 def api_detail(isbn):
@@ -117,6 +121,12 @@ def api_detail(isbn):
     book['pubyear'] = book_result.pubyear
     book['isbn'] = book_result.isbn
 
+    ratings = get_our_ratings(isbn)
+    book['average_score'] = ratings['average_score']
+    book['review_count'] = ratings['review_count']
+    return jsonify(book)
+
+def get_our_ratings(isbn):
     review_result = db.execute("SELECT review, rating FROM reviews WHERE isbn = :isbn", {"isbn":isbn})
     review_count = 0
     review_sum = 0
@@ -126,10 +136,20 @@ def api_detail(isbn):
             continue
         review_count += 1
         review_sum += int(review.rating)
-        average_rating = review_sum / review_count
+    average_score = review_sum / review_count
 
-    book['review_count'] = review_count
-    book['average_score'] = average_rating
+    ratings = dict()
+    ratings['average_score'] = average_score
+    ratings['review_count'] = review_count
+    return ratings
 
-    return jsonify(book)
-
+def get_good_reads_ratings(isbn):
+    res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "u7umhnyVEtY6svfMBNWOYA", "isbns": isbn})
+    obj = res.json()
+    average_score = obj['books'][0]['average_rating']
+    review_count = obj['books'][0]['work_ratings_count']
+    ratings = dict()
+    ratings['average_score'] = average_score
+    ratings['review_count'] = review_count
+    return ratings
+ 
