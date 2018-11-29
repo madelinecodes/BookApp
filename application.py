@@ -1,7 +1,7 @@
 import os
 import requests
 import json
-from flask import Flask, session, redirect, render_template, request, jsonify
+from flask import Flask, session, redirect, render_template, request, jsonify, url_for
 from flask_session import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -36,11 +36,15 @@ def register():
     if request.method == "POST":
         username = request.form.get('username')
         password = request.form.get('password')
-        db.execute("INSERT INTO users (username, password) VALUES (:username, :password)",
-            {"username" : username, "password": password})
-        db.commit()
-        session['username'] = username
-        return redirect('/')
+        already_registered = db.execute("SELECT username FROM users WHERE username = :username",{"username": username})
+        if already_registered.rowcount == 0:
+            db.execute("INSERT INTO users (username, password) VALUES (:username, :password)",
+                {"username" : username, "password": password})
+            db.commit()
+            session['username'] = username
+            return redirect('/')
+        else: 
+            return render_template('user-taken.html')
     else:
         return render_template('register.html')
 
@@ -54,13 +58,11 @@ def login():
         password = request.form.get('password')
         login_result = db.execute("SELECT * FROM users WHERE username = :username AND password = :password ",
             {"username": username, "password": password})
-
         if login_result.rowcount == 0:
-                return render_template("register.html", message="You're not currently registered")
-        elif login_result.rowcount == 1:
+            return render_template("register.html", message="You're not currently registered")
+        else: 
             session['username'] = username
-            return 'Logged in as ' + session['username']
-            #thats their thingy so we need to start a session for them
+            return render_template('index.html')
     else:
         return render_template('login.html')
 
@@ -73,7 +75,6 @@ def logout():
 
 @app.route("/search", methods=['GET', 'POST'])
 def search():
-    if 'username' in session:
         if request.method == "POST":
             search = request.form.get("search")
             search_result = db.execute("SELECT * FROM books WHERE (LOWER(isbn) LIKE LOWER(:search)) OR (LOWER(title) LIKE LOWER(:search)) OR (author LIKE LOWER(:search)) LIMIT 10",
@@ -84,26 +85,25 @@ def search():
                 return render_template('book_list.html', result=search_result)
         else:
             return render_template('search.html')
-    else:
-        return redirect('/login')
 
+ 
 @app.route("/book/<isbn>",  methods=['GET', 'POST']) 
 def book_detail(isbn):
-    review_list = db.execute("SELECT reviews.users, reviews.review, reviews.rating, books.isbn FROM reviews LEFT JOIN books ON reviews.isbn = books.isbn").fetchall()
+    review_list = db.execute("SELECT users, review, rating, isbn FROM reviews where isbn = :isbn", {"isbn":isbn}).fetchall()
     if 'username' in session and request.method == "POST":
         for review in review_list:
-            if review.users == session['username'] and review.isbn == isbn:
+            if review['users'] == session['username'] and review['isbn'] == isbn:
                 return 'Sorry, you can only review books once'
 
-        isbn = db.execute("SELECT isbn FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
+        isbn_result = db.execute("SELECT isbn FROM books WHERE isbn = :isbn LIMIT 1", {"isbn": isbn}).first()
         users = session['username']
         review = request.form.get("review")
         rating = request.form.get('rating')
         
         db.execute("INSERT INTO reviews (users, review, rating, isbn) VALUES (:users, :review, :rating, :isbn)", 
-        {"users":users, "review":review, "rating":rating, "isbn":isbn.isbn})
+        {"users":users, "review":review, "rating":rating, "isbn":isbn})
         db.commit()
-        return book_detail(isbn)
+        return redirect(url_for('book_detail', isbn=isbn))
     elif 'username' not in session and request.method == "POST":  
          return redirect('/login')
     else:
