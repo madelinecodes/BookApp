@@ -1,9 +1,18 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Success!
+    Home Page
 {% endblock %}
 
 {% block body %}
-    <h1>Success!</h1>
+<div class=mainInfo>
+    <h1>Welcome!</h1>
+    <p> Would you like to <a href="{{ url_for('search') }}">search</a> for a book?</p>
+    <p> If you haven't, please <a href="{{ url_for('login') }}">Login.</a></p>
+    <p>If you do not have an account with us, please <br>
+        <a href="{{ url_for('register') }}">register before proceeding.</a></p>
+
+</div>
+
+<p class=logout> <a href="{{ url_for('logout') }}">Logout?</a></p>
 {% endblock %}

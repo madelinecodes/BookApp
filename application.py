@@ -24,10 +24,12 @@ db = scoped_session(sessionmaker(bind=engine))
 
 @app.route("/")
 def index():
-    if 'username' in session:
-        return 'Logged in as ' + session['username']
-    else:
-        return 'You are not logged in!'
+    return render_template('index.html')
+
+    #if 'username' in session:
+      #  return 'Logged in as ' + session['username']
+  #  else:
+       # return 'You are not logged in!'
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
@@ -47,7 +49,6 @@ def register():
 def login():
     if 'username' in session:
         return redirect('/')
-        #redirect to index 
     elif request.method == "POST":
         username = request.form.get('username')
         password = request.form.get('password')
@@ -67,7 +68,7 @@ def login():
 def logout():
     if 'username' in session:
         session.pop('username', None)
-    return 'Logged out!'
+    return render_template('logout.html')
 
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -136,7 +137,9 @@ def get_our_ratings(isbn):
             continue
         review_count += 1
         review_sum += int(review.rating)
-    average_score = review_sum / review_count
+    average_score = 0
+    if review_count > 0:
+     average_score = review_sum / review_count
 
     ratings = dict()
     ratings['average_score'] = average_score
